@@ -20,18 +20,20 @@ class Rooms(APIView):
         if request.user.is_authenticated: # 로그인한 유저인 경우
             serializer = RoomDetailSerializer(data=request.data)
             if serializer.is_valid():
-                category_pk = request.data.get("category")
-                if not category_pk:
-                    raise ParseError
+                category_pk = request.data.get("category") # 유저가 보낸 데이터로 카테고리의 id 찾음
+                if not category_pk: # 유저가 카테고리 안 보냈으면
+                    raise ParseError # 에러 반환
                 try:
-                    category = Category.objects.get(pk=category_pk)
-                except Category.DoesNotExist:
-                    raise ParseError
-                new_room = serializer.save(owner=request.user, category)
+                    category = Category.objects.get(pk=category_pk) # 카테고리 보냈으면 DB에서 유저가 보낸 카테고리에 맞는 카테고리 꺼내옴
+                    if category.kind == Category.CategoryKindChoices.EXPERIENCES: # 그런데 그 카테고리 id가 EXPERIENCES의 카테고리이면
+                        raise ParseError # 에러 반환
+                except Category.DoesNotExist: # DB에 카테고리가 없다면
+                    raise ParseError # 에러 반환
+                new_room = serializer.save(owner=request.user, category=category)
                 return Response(RoomDetailSerializer(new_room).data)
-            else:
-                return Response(serializer.errors)
-        else:
+            else: # serializer validation 통과 못 함
+                return Response(serializer.errors) # 에러 반환 
+        else: # 로그인 안 된 유저
             raise NotAuthenticated
 
 
