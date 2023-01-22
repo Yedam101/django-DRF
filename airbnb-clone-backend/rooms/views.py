@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.status import HTTP_204_NO_CONTENT
-from rest_framework.exceptions import NotFound, NotAuthenticated, ParseError
+from rest_framework.exceptions import NotFound, NotAuthenticated, ParseError, PermissionDenied
 from django.db import transaction
 from categories.models import Category
 from .models import Amenity, Room
@@ -73,21 +73,31 @@ class RoomDetail(APIView):
 
 
     def put(self, request, pk):
-        if request.user.is_authenticated():
-            room = self.get_object(pk)
-            serializer = RoomDetailSerializer(room, data=request.data, partial=True)
-            if serializer.is_valid():
-                updated_room = serializer.save()
-                return Response(RoomDetailSerializer(updated_room).data)
-            else:
-                return Response(serializer.errors)
-        else:
+        room = self.get_object(pk)
+        if not request.user.is_authenticated: # 로그인 되었는지 체크
             raise NotAuthenticated
+        if room.owner != request.user: # 현 유저가 방의 오너인지 체크
+            raise PermissionDenied
+        serializer = RoomDetailSerializer(room, data=request.data, partial=True)
+        if serializer.is_valid():
+            updated_room = serializer.save()
+            return Response(RoomDetailSerializer(updated_room).data)
+        else:
+            return Response(serializer.errors)
+
 
 
 
     def delete(self, request, pk):
-        pass
+        room = self.get_object(pk)
+        if request.user.is_authenticated() : # 로그인 되었는지 체크
+            raise NotAuthenticated
+        if room.owner != request.user: # 현 유저가 방의 오너인지 체크
+            raise PermissionDenied
+        room.delete()
+        return Response(HTTP_204_NO_CONTENT)
+
+            
 
 
 
